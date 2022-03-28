@@ -1,13 +1,20 @@
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Font;
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -16,6 +23,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JSeparator;
 
 import org.json.simple.JSONObject;
@@ -33,6 +41,7 @@ public class InstallerFrame extends JFrame {
     private URL dataDownloadURL;
 
     private String latestCtVersion;
+    private String latestCtFile;
     private HashMap<String, String> ctFileToVersion = new HashMap<String, String>();
     private URL ctDownloadURL;
     private URL soopyv2DownloadURL;
@@ -41,7 +50,7 @@ public class InstallerFrame extends JFrame {
     public InstallerFrame() {
         super("SoopyV2 Installer v" + version);
 
-        minecraftFolder = System.getenv("APPDATA") + "\\.minecraft";
+        minecraftFolder = System.getenv("APPDATA") + File.separator + ".minecraft";
         try {
             dataDownloadURL = new URL("http://soopymc.my.to/api/soopyv2/installerData.json");
         } catch (MalformedURLException e) {
@@ -61,6 +70,12 @@ public class InstallerFrame extends JFrame {
 
         JPanel loadingPage = new JPanel();
         loadingPage.add(new JLabel("Downloading data..."));
+
+        JProgressBar progressBar = new JProgressBar();
+
+        progressBar.setIndeterminate(true);
+
+        loadingPage.add(progressBar);
 
         this.openPage(loadingPage);
 
@@ -169,6 +184,15 @@ public class InstallerFrame extends JFrame {
             });
 
             ctInstallPanel.add(installCtButton, BorderLayout.EAST);
+        } else {
+            JButton deleteCtButton = new JButton("Delete");
+
+            deleteCtButton.addActionListener(event -> {
+                this.uninstallChattriggers();
+                this.openPage(mainInstallPanel());
+            });
+
+            ctInstallPanel.add(deleteCtButton, BorderLayout.EAST);
         }
         panel.add(ctInstallPanel);
         // End of install Chattriggers
@@ -191,6 +215,15 @@ public class InstallerFrame extends JFrame {
             });
 
             soopyV2InstallPanel.add(installSoopyV2Button, BorderLayout.EAST);
+        } else {
+            JButton deleteSoopyV2Button = new JButton("Delete");
+
+            deleteSoopyV2Button.addActionListener(event -> {
+                this.uninstallSoopyV2();
+                this.openPage(mainInstallPanel());
+            });
+
+            soopyV2InstallPanel.add(deleteSoopyV2Button, BorderLayout.EAST);
         }
         panel.add(soopyV2InstallPanel);
         // End of install SoopyV2
@@ -215,6 +248,15 @@ public class InstallerFrame extends JFrame {
             });
 
             soopyV2UpdateButtonPatcherInstallPanel.add(installSoopyV2UpdateButtonPatcherButton, BorderLayout.EAST);
+        } else {
+            JButton deleteSoopyV2UpdateButtonPatcherButton = new JButton("Delete");
+
+            deleteSoopyV2UpdateButtonPatcherButton.addActionListener(event -> {
+                this.uninstallSoopyV2UpdateButtonPatcher();
+                this.openPage(mainInstallPanel());
+            });
+
+            soopyV2UpdateButtonPatcherInstallPanel.add(deleteSoopyV2UpdateButtonPatcherButton, BorderLayout.EAST);
         }
         panel.add(soopyV2UpdateButtonPatcherInstallPanel);
         // End of install SoopyV2UpdateButtonPatcher
@@ -243,72 +285,255 @@ public class InstallerFrame extends JFrame {
     }
 
     public void installChattriggers() {
-        // todo: 1. Make sure the folder structure exists
-        // todo: 2. Remove current version of chattriggers
-        // todo: 3. Download latest version of chattriggers
-
         JPanel loadingPage = new JPanel();
 
         loadingPage.add(new JLabel("Installing ChatTriggers..."));
 
+        JProgressBar progressBar = new JProgressBar();
+
+        progressBar.setIndeterminate(true);
+
+        loadingPage.add(progressBar);
+
         this.openPage(loadingPage);
 
-        try {
-            Thread.sleep(1000); // todo: replace this with actual download
-        } catch (InterruptedException ignored) {
+        if (!new File(minecraftFolder + File.separator + "mods").exists())
+            new File(minecraftFolder + File.separator + "mods").mkdirs();
+
+        for (String key : ctFileToVersion.keySet()) {
+            if (new File(minecraftFolder + File.separator + "mods" + File.separator + "" + key + ".jar").exists())
+                new File(minecraftFolder + File.separator + "mods" + File.separator + "" + key + ".jar").delete();
+        }
+        String downloadLoc = minecraftFolder + File.separator + "mods";
+        if (new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9").exists()) {
+            for (String key : ctFileToVersion.keySet()) {
+                if (new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9" + File.separator + ""
+                        + key + ".jar").exists())
+                    new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9" + File.separator + ""
+                            + key + ".jar").delete();
+            }
+
+            downloadLoc = minecraftFolder + File.separator + "mods" + File.separator + "1.8.9";
+        }
+
+        this.urlToFile(ctDownloadURL, downloadLoc + File.separator + "" + latestCtFile + ".jar", 10000, 10000);
+    }
+
+    public void uninstallChattriggers() {
+        for (String key : ctFileToVersion.keySet()) {
+            if (new File(minecraftFolder + File.separator + "mods" + File.separator + "" + key + ".jar").exists())
+                new File(minecraftFolder + File.separator + "mods" + File.separator + "" + key + ".jar").delete();
+        }
+        if (new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9").exists()) {
+            for (String key : ctFileToVersion.keySet()) {
+                if (new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9" + File.separator + ""
+                        + key + ".jar").exists())
+                    new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9" + File.separator + ""
+                            + key + ".jar").delete();
+            }
         }
     }
 
     public void installSoopyV2() {
-        // todo: 1. Make sure the folder structure exists
-        // todo: 2. Remove current version of soopyv2
-        // todo: 3. Download latest version of soopyv2
 
         JPanel loadingPage = new JPanel();
 
         loadingPage.add(new JLabel("Installing SoopyV2..."));
 
+        JProgressBar progressBar = new JProgressBar();
+
+        progressBar.setIndeterminate(true);
+
+        loadingPage.add(progressBar);
+
         this.openPage(loadingPage);
 
-        try {
-            Thread.sleep(1000); // todo: replace this with actual download
-        } catch (InterruptedException ignored) {
-        }
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules").exists())
+            new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                    + "modules").mkdirs();
+
+        if (new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2").exists())
+            this.deleteDirectory(new File(
+                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                            + "modules" + File.separator + "SoopyV2"));
+
+        this.urlToFile(soopyv2DownloadURL,
+                minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                        + "modules" + File.separator + "SoopyV2.zip",
+                10000,
+                10000);
+
+        this.unzip(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2.zip",
+                minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                        + "modules");
+
+        new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2.zip").delete();
+    }
+
+    public void uninstallSoopyV2() {
+        if (new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2").exists())
+            this.deleteDirectory(new File(
+                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                            + "modules" + File.separator + "SoopyV2"));
     }
 
     public void installSoopyV2UpdateButtonPatcher() {
-        // todo: 1. Make sure the folder structure exists
-        // todo: 2. Remove current version of soopyv2updatebuttonpatcher
-        // todo: 3. Download latest version of soopyv2updatebuttonpatcher
 
         JPanel loadingPage = new JPanel();
 
         loadingPage.add(new JLabel("Installing SoopyV2UpdateButtonPatcher..."));
 
+        JProgressBar progressBar = new JProgressBar();
+
+        progressBar.setIndeterminate(true);
+
+        loadingPage.add(progressBar);
+
         this.openPage(loadingPage);
 
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules").exists())
+            new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                    + "modules").mkdirs();
+
+        if (new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher").exists())
+            this.deleteDirectory(new File(
+                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                            + "modules" + File.separator + "SoopyV2UpdateButtonPatcher"));
+
+        this.urlToFile(soopyv2UpdateButtonPatcherDownloadURL,
+                minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                        + "modules" + File.separator + "SoopyV2UpdateButtonPatcher.zip",
+                10000,
+                10000);
+
+        this.unzip(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher.zip",
+                minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                        + "modules");
+
+        new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher.zip").delete();
+    }
+
+    public void uninstallSoopyV2UpdateButtonPatcher() {
+        if (new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher").exists())
+            this.deleteDirectory(new File(
+                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                            + "modules" + File.separator + "SoopyV2UpdateButtonPatcher"));
+    }
+
+    private void urlToFile(URL url, String destination, int connecttimeout, int readtimeout) {
+        File d = new File(destination);
+        d.getParentFile().mkdirs();
+        HttpURLConnection connection;
         try {
-            Thread.sleep(1000); // todo: replace this with actual download
-        } catch (InterruptedException ignored) {
+            connection = (HttpURLConnection) url.openConnection();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
         }
+        connection.setDoOutput(true);
+        connection.setConnectTimeout(connecttimeout);
+        connection.setReadTimeout(readtimeout);
+        try (InputStream IS = connection.getInputStream()) {
+            PrintStream FilePS = new PrintStream(destination);
+            byte[] buf = new byte[65536];
+            int len = 0;
+            try {
+                while ((len = IS.read(buf)) > 0) {
+                    FilePS.write(buf, 0, len);
+                }
+                IS.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            FilePS.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void unzip(String zipFile, String unziploc) { // code translated from chattriggers FileLib.unzip
+        File unzipDir = new File(unziploc);
+        if (!unzipDir.exists())
+            unzipDir.mkdir();
+
+        try (ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFile))) {
+            ZipEntry entry = zipIn.getNextEntry();
+            // iterates over entries in the zip file
+            while (entry != null) {
+                String filePath = unziploc + File.separator + entry.getName();
+                if (!entry.isDirectory()) {
+                    // if the entry is a file, extracts it
+                    this.extractFile(zipIn, filePath);
+                } else {
+                    // if the entry is a directory, make the directory
+                    File dir = new File(filePath);
+                    dir.mkdir();
+                }
+                zipIn.closeEntry();
+                entry = zipIn.getNextEntry();
+            }
+            zipIn.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void extractFile(ZipInputStream zipIn, String filePath) {
+        try {
+            File toWrite = new File(filePath);
+            toWrite.getParentFile().mkdirs();
+            toWrite.createNewFile();
+
+            BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
+            byte[] bytesIn = new byte[4096];
+            int read = zipIn.read(bytesIn);
+            while (read != -1) {
+                bos.write(bytesIn, 0, read);
+                read = zipIn.read(bytesIn);
+            }
+            bos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    boolean deleteDirectory(File directoryToBeDeleted) {
+        File[] allContents = directoryToBeDeleted.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                deleteDirectory(file);
+            }
+        }
+        return directoryToBeDeleted.delete();
     }
 
     public Boolean isChattriggersInstalled() {
 
         if (!new File(minecraftFolder).exists())
             return false;
-        if (!new File(minecraftFolder + "\\mods").exists())
+        if (!new File(minecraftFolder + File.separator + "mods").exists())
             return false;
 
         for (String key : ctFileToVersion.keySet()) {
-            if (new File(minecraftFolder + "\\mods\\" + key + ".jar").exists())
+            if (new File(minecraftFolder + File.separator + "mods" + File.separator + "" + key + ".jar").exists())
                 return true;
         }
-        if (!new File(minecraftFolder + "\\mods\\1.8.9").exists())
+        if (!new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9").exists())
             return false;
 
         for (String key : ctFileToVersion.keySet()) {
-            if (new File(minecraftFolder + "\\mods\\1.8.9\\" + key + ".jar").exists())
+            if (new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9" + File.separator + ""
+                    + key + ".jar").exists())
                 return true;
         }
 
@@ -319,13 +544,15 @@ public class InstallerFrame extends JFrame {
 
         if (!new File(minecraftFolder).exists())
             return false;
-        if (!new File(minecraftFolder + "\\config").exists())
+        if (!new File(minecraftFolder + File.separator + "config").exists())
             return false;
-        if (!new File(minecraftFolder + "\\config\\ChatTriggers").exists())
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers").exists())
             return false;
-        if (!new File(minecraftFolder + "\\config\\ChatTriggers\\modules").exists())
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules").exists())
             return false;
-        if (!new File(minecraftFolder + "\\config\\ChatTriggers\\modules\\SoopyV2").exists())
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2").exists())
             return false;
 
         return true;
@@ -335,13 +562,15 @@ public class InstallerFrame extends JFrame {
 
         if (!new File(minecraftFolder).exists())
             return false;
-        if (!new File(minecraftFolder + "\\config").exists())
+        if (!new File(minecraftFolder + File.separator + "config").exists())
             return false;
-        if (!new File(minecraftFolder + "\\config\\ChatTriggers").exists())
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers").exists())
             return false;
-        if (!new File(minecraftFolder + "\\config\\ChatTriggers\\modules").exists())
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules").exists())
             return false;
-        if (!new File(minecraftFolder + "\\config\\ChatTriggers\\modules\\SoopyV2UpdateButtonPatcher").exists())
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher").exists())
             return false;
 
         return true;
@@ -350,18 +579,19 @@ public class InstallerFrame extends JFrame {
     public String getChattriggersVersion() {
         if (!new File(minecraftFolder).exists())
             return null;
-        if (!new File(minecraftFolder + "\\mods").exists())
+        if (!new File(minecraftFolder + File.separator + "mods").exists())
             return null;
 
         for (String key : ctFileToVersion.keySet()) {
-            if (new File(minecraftFolder + "\\mods\\" + key + ".jar").exists())
+            if (new File(minecraftFolder + File.separator + "mods" + File.separator + "" + key + ".jar").exists())
                 return ctFileToVersion.get(key);
         }
-        if (!new File(minecraftFolder + "\\mods\\1.8.9").exists())
+        if (!new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9").exists())
             return null;
 
         for (String key : ctFileToVersion.keySet()) {
-            if (new File(minecraftFolder + "\\mods\\1.8.9\\" + key + ".jar").exists())
+            if (new File(minecraftFolder + File.separator + "mods" + File.separator + "1.8.9" + File.separator + ""
+                    + key + ".jar").exists())
                 return ctFileToVersion.get(key);
         }
 
@@ -404,6 +634,8 @@ public class InstallerFrame extends JFrame {
             }
 
             latestCtVersion = (String) jobj.get("latestCtVersion");
+
+            latestCtFile = (String) jobj.get("latestCtFile");
 
             JSONObject ctFileToVersiond = (JSONObject) jobj.get("ctFileToVersion");
 
