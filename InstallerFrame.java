@@ -34,7 +34,7 @@ public class InstallerFrame extends JFrame {
 
     public String minecraftFolder;
 
-    public static String version = "0.0.1";
+    public static String version = "0.0.2";
 
     private JPanel openPage;
 
@@ -50,7 +50,11 @@ public class InstallerFrame extends JFrame {
     public InstallerFrame() {
         super("SoopyV2 Installer v" + version);
 
-        minecraftFolder = System.getenv("APPDATA") + File.separator + ".minecraft";
+        if (System.getenv("APPDATA") != null) {
+            minecraftFolder = System.getenv("APPDATA") + File.separator + ".minecraft";
+        } else {
+            minecraftFolder = System.getProperty("user.home");
+        }
         try {
             dataDownloadURL = new URL("http://soopymc.my.to/api/soopyv2/installerData.json");
         } catch (MalformedURLException e) {
