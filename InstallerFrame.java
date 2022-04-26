@@ -149,6 +149,36 @@ public class InstallerFrame extends JFrame {
         selectButton.addActionListener(event -> {
             minecraftFolder = chooser.getCurrentDirectory().toString();
 
+            if (!this.isValidMinecraftFolder(minecraftFolder)) {
+                boolean parentIsMcFolder = this.isValidMinecraftFolder(new File(minecraftFolder).getParent());
+                if (!parentIsMcFolder) {
+                    int confirm = JOptionPane.showConfirmDialog(this,
+                            "The selected folder is not a valid minecraft folder!\nDo you want to use it anyway?");
+                    if (confirm != 0)
+                        return;
+                } else {
+                    int confirm = JOptionPane.showConfirmDialog(this,
+                            "The selected folder is not a valid minecraft folder!\nDo you want to select "
+                                    + new File(minecraftFolder).getParent() + " instead?");
+                    if (confirm == 0) {
+                        minecraftFolder = new File(minecraftFolder).getParent();
+                    }
+                    if (confirm == 2) {
+                        return;
+                    }
+                }
+            }
+            if (new File(minecraftFolder + File.separator + "skyclient").exists()) {
+                int confirm = JOptionPane.showConfirmDialog(this,
+                        "You appear to have skyclient installed!\nDo you want to select the skyclient folder instead?");
+                if (confirm == 0) {
+                    minecraftFolder = minecraftFolder + File.separator + "skyclient";
+                }
+                if (confirm == 2) {
+                    return;
+                }
+            }
+
             this.openPage(this.mainInstallPanel());
         });
 
@@ -658,5 +688,15 @@ public class InstallerFrame extends JFrame {
             e.printStackTrace();
             System.exit(1);
         }
+    }
+
+    public boolean isValidMinecraftFolder(String path) {
+        if (!new File(path + File.separator + "logs").exists())
+            return false;
+        if (!new File(path + File.separator + "saves").exists())
+            return false;
+        if (!new File(path + File.separator + "options.txt").exists())
+            return false;
+        return true;
     }
 }
