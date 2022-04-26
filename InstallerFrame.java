@@ -4,6 +4,7 @@ import java.awt.Font;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,7 +35,7 @@ public class InstallerFrame extends JFrame {
 
     public String minecraftFolder;
 
-    public static String version = "0.0.2";
+    public static String version = "0.0.3";
 
     private JPanel openPage;
 
@@ -42,6 +43,7 @@ public class InstallerFrame extends JFrame {
 
     private String latestCtVersion;
     private String latestCtFile;
+    private Long latestSoopyV2Version;
     private HashMap<String, String> ctFileToVersion = new HashMap<String, String>();
     private URL ctDownloadURL;
     private URL soopyv2DownloadURL;
@@ -196,6 +198,8 @@ public class InstallerFrame extends JFrame {
         Boolean chattriggersVersionIsLatest = isChattriggersInstalled
                 && this.latestCtVersion.equals(chattriggersVersion);
         Boolean isSoopyV2Installed = this.isSoopyV2Installed();
+        String soopyV2Version = this.getSoopyV2Version();
+        Boolean isSoopyV2Latest = this.isSoopyV2Latest();
         Boolean isSoopyV2UpdatePatcherInstalled = this.isSoopyV2UpdatePatcherInstalled();
 
         // Start of install Chattriggers
@@ -234,15 +238,18 @@ public class InstallerFrame extends JFrame {
         // Start of install SoopyV2
         JPanel soopyV2InstallPanel = new JPanel();
 
-        JLabel soopyV2InstallLabel = new JLabel(isSoopyV2Installed ? "SoopyV2: Installed" : "SoopyV2: Not Installed");
+        JLabel soopyV2InstallLabel = new JLabel(
+                isSoopyV2Installed ? "SoopyV2: Installed (v" + soopyV2Version + ")" : "SoopyV2: Not Installed");
 
         soopyV2InstallPanel.add(soopyV2InstallLabel, BorderLayout.WEST);
 
-        if (!isSoopyV2Installed) {
-            JButton installSoopyV2Button = new JButton("Install");
+        if (!isSoopyV2Installed || !isSoopyV2Latest) {
+            JButton installSoopyV2Button = new JButton(isSoopyV2Latest ? "Install" : "Update");
 
             installSoopyV2Button.addActionListener(event -> {
                 new Thread(() -> {
+                    if (!isSoopyV2Latest)
+                        this.uninstallSoopyV2();
                     this.installSoopyV2();
                     this.openPage(mainInstallPanel());
                 }).start();
@@ -304,8 +311,14 @@ public class InstallerFrame extends JFrame {
                 new Thread(() -> {
                     if (!isChattriggersInstalled)
                         this.installChattriggers();
-                    if (!isSoopyV2Installed)
+                    if (isSoopyV2Installed) {
+                        if (!isSoopyV2Latest) {
+                            this.uninstallSoopyV2();
+                            this.installSoopyV2();
+                        }
+                    } else {
                         this.installSoopyV2();
+                    }
                     if (!isSoopyV2UpdatePatcherInstalled)
                         this.installSoopyV2UpdateButtonPatcher();
                     this.openPage(mainInstallPanel());
@@ -592,6 +605,56 @@ public class InstallerFrame extends JFrame {
         return true;
     }
 
+    public Boolean isSoopyV2Latest() {
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2" + File.separator + "metadata.json").exists())
+            return false;
+        JSONParser parser = new JSONParser();
+        try {
+            Scanner scanner = new Scanner(new File(
+                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                            + "modules" + File.separator + "SoopyV2" + File.separator + "metadata.json"));
+            String file = "";
+            while (scanner.hasNextLine()) {
+                file += scanner.nextLine();
+            }
+            scanner.close();
+
+            JSONObject jobj = (JSONObject) parser.parse(file);
+            Long version = (Long) jobj.get("versionId");
+
+            return latestSoopyV2Version == version;
+        } catch (FileNotFoundException e) {
+        } catch (ParseException e) {
+        }
+        return false;
+    }
+
+    public String getSoopyV2Version() {
+        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                + "modules" + File.separator + "SoopyV2" + File.separator + "metadata.json").exists())
+            return "";
+        JSONParser parser = new JSONParser();
+        try {
+            Scanner scanner = new Scanner(new File(
+                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
+                            + "modules" + File.separator + "SoopyV2" + File.separator + "metadata.json"));
+            String file = "";
+            while (scanner.hasNextLine()) {
+                file += scanner.nextLine();
+            }
+            scanner.close();
+
+            JSONObject jobj = (JSONObject) parser.parse(file);
+            String version = (String) jobj.get("version");
+
+            return version;
+        } catch (FileNotFoundException e) {
+        } catch (ParseException e) {
+        }
+        return "";
+    }
+
     public Boolean isSoopyV2UpdatePatcherInstalled() {
 
         if (!new File(minecraftFolder).exists())
@@ -670,6 +733,8 @@ public class InstallerFrame extends JFrame {
             latestCtVersion = (String) jobj.get("latestCtVersion");
 
             latestCtFile = (String) jobj.get("latestCtFile");
+
+            latestSoopyV2Version = (Long) jobj.get("latestSoopyV2Version");
 
             JSONObject ctFileToVersiond = (JSONObject) jobj.get("ctFileToVersion");
 
