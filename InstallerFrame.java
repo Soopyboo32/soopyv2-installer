@@ -35,7 +35,7 @@ public class InstallerFrame extends JFrame {
 
     public String minecraftFolder;
 
-    public static String version = "0.0.3";
+    public static String version = "0.0.4";
 
     private JPanel openPage;
 
@@ -47,7 +47,6 @@ public class InstallerFrame extends JFrame {
     private HashMap<String, String> ctFileToVersion = new HashMap<String, String>();
     private URL ctDownloadURL;
     private URL soopyv2DownloadURL;
-    private URL soopyv2UpdateButtonPatcherDownloadURL;
 
     public InstallerFrame() {
         super("SoopyV2 Installer v" + version);
@@ -200,7 +199,6 @@ public class InstallerFrame extends JFrame {
         Boolean isSoopyV2Installed = this.isSoopyV2Installed();
         String soopyV2Version = this.getSoopyV2Version();
         Boolean isSoopyV2Latest = this.isSoopyV2Latest();
-        Boolean isSoopyV2UpdatePatcherInstalled = this.isSoopyV2UpdatePatcherInstalled();
 
         // Start of install Chattriggers
         JPanel ctInstallPanel = new JPanel();
@@ -269,40 +267,7 @@ public class InstallerFrame extends JFrame {
         panel.add(soopyV2InstallPanel);
         // End of install SoopyV2
 
-        // Start of install SoopyV2UpdateButtonPatcher
-        JPanel soopyV2UpdateButtonPatcherInstallPanel = new JPanel();
-
-        JLabel soopyV2UpdateButtonPatcherInstallLabel = new JLabel(
-                isSoopyV2UpdatePatcherInstalled ? "SoopyV2UpdateButtonPatcher: Installed"
-                        : "SoopyV2UpdateButtonPatcher: Not Installed");
-
-        soopyV2UpdateButtonPatcherInstallPanel.add(soopyV2UpdateButtonPatcherInstallLabel, BorderLayout.WEST);
-
-        if (!isSoopyV2UpdatePatcherInstalled) {
-            JButton installSoopyV2UpdateButtonPatcherButton = new JButton("Install");
-
-            installSoopyV2UpdateButtonPatcherButton.addActionListener(event -> {
-                new Thread(() -> {
-                    this.installSoopyV2UpdateButtonPatcher();
-                    this.openPage(mainInstallPanel());
-                }).start();
-            });
-
-            soopyV2UpdateButtonPatcherInstallPanel.add(installSoopyV2UpdateButtonPatcherButton, BorderLayout.EAST);
-        } else {
-            JButton deleteSoopyV2UpdateButtonPatcherButton = new JButton("Delete");
-
-            deleteSoopyV2UpdateButtonPatcherButton.addActionListener(event -> {
-                this.uninstallSoopyV2UpdateButtonPatcher();
-                this.openPage(mainInstallPanel());
-            });
-
-            soopyV2UpdateButtonPatcherInstallPanel.add(deleteSoopyV2UpdateButtonPatcherButton, BorderLayout.EAST);
-        }
-        panel.add(soopyV2UpdateButtonPatcherInstallPanel);
-        // End of install SoopyV2UpdateButtonPatcher
-
-        if (!isChattriggersInstalled || !isSoopyV2Installed || !isSoopyV2UpdatePatcherInstalled) {
+        if (!isChattriggersInstalled || !isSoopyV2Installed) {
             JButton installAllButton = new JButton("Install All");
 
             installAllButton.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -319,8 +284,6 @@ public class InstallerFrame extends JFrame {
                     } else {
                         this.installSoopyV2();
                     }
-                    if (!isSoopyV2UpdatePatcherInstalled)
-                        this.installSoopyV2UpdateButtonPatcher();
                     this.openPage(mainInstallPanel());
                 }).start();
             });
@@ -427,54 +390,6 @@ public class InstallerFrame extends JFrame {
             this.deleteDirectory(new File(
                     minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
                             + "modules" + File.separator + "SoopyV2"));
-    }
-
-    public void installSoopyV2UpdateButtonPatcher() {
-
-        JPanel loadingPage = new JPanel();
-
-        loadingPage.add(new JLabel("Installing SoopyV2UpdateButtonPatcher..."));
-
-        JProgressBar progressBar = new JProgressBar();
-
-        progressBar.setIndeterminate(true);
-
-        loadingPage.add(progressBar);
-
-        this.openPage(loadingPage);
-
-        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                + "modules").exists())
-            new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                    + "modules").mkdirs();
-
-        if (new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher").exists())
-            this.deleteDirectory(new File(
-                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                            + "modules" + File.separator + "SoopyV2UpdateButtonPatcher"));
-
-        this.urlToFile(soopyv2UpdateButtonPatcherDownloadURL,
-                minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                        + "modules" + File.separator + "SoopyV2UpdateButtonPatcher.zip",
-                10000,
-                10000);
-
-        this.unzip(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher.zip",
-                minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                        + "modules");
-
-        new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher.zip").delete();
-    }
-
-    public void uninstallSoopyV2UpdateButtonPatcher() {
-        if (new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher").exists())
-            this.deleteDirectory(new File(
-                    minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                            + "modules" + File.separator + "SoopyV2UpdateButtonPatcher"));
     }
 
     private void urlToFile(URL url, String destination, int connecttimeout, int readtimeout) {
@@ -655,24 +570,6 @@ public class InstallerFrame extends JFrame {
         return "";
     }
 
-    public Boolean isSoopyV2UpdatePatcherInstalled() {
-
-        if (!new File(minecraftFolder).exists())
-            return false;
-        if (!new File(minecraftFolder + File.separator + "config").exists())
-            return false;
-        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers").exists())
-            return false;
-        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                + "modules").exists())
-            return false;
-        if (!new File(minecraftFolder + File.separator + "config" + File.separator + "ChatTriggers" + File.separator
-                + "modules" + File.separator + "SoopyV2UpdateButtonPatcher").exists())
-            return false;
-
-        return true;
-    }
-
     public String getChattriggersVersion() {
         if (!new File(minecraftFolder).exists())
             return null;
@@ -744,7 +641,6 @@ public class InstallerFrame extends JFrame {
 
             ctDownloadURL = new URL((String) jobj.get("ctDownloadURL"));
             soopyv2DownloadURL = new URL((String) jobj.get("soopyv2DownloadUrl"));
-            soopyv2UpdateButtonPatcherDownloadURL = new URL((String) jobj.get("soopyv2UpdateButtonPatcherDownloadUrl"));
         } catch (IOException | ParseException e) {
             JOptionPane.showMessageDialog(this,
                     "Error loading download urls and latest version data",
